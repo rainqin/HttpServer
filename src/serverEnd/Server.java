@@ -17,11 +17,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.regex.PatternSyntaxException;
 
 public class Server {
 	private static ServerSocket srvSock;
 	private static byte[] fileData;
 	private static String header;
+	private static String targetFile;
+	private static String method;
+	private static String format;
 	
 	private static byte[] readFileAsString(String filePath)
 				   throws IOException {
@@ -76,7 +80,9 @@ public class Server {
 			s = s + "Content-Type: image/jpg\r\n";
 		} else if (file_type.equals("gif")) {
 			s = s + "Content-Type: image/gif\r\n";
-		} 
+		} else {
+			s = s + "Content-Type: text/html\r\n";
+		}
 		    ////so on and so on......
 		s = s + "\r\n"; //this marks the end of the httpheader
 		    //and the start of the body
@@ -143,26 +149,45 @@ public class Server {
 				/* Read the data send by the client */
 				buffer = inStream.readLine();
 				
-				String targetFile = buffer.split("GET ")[1].split(" HTTP")[0];
-				System.out.println(targetFile);
-				
-				System.out.println(targetFile.split("\\.")[0]);
-				String format = targetFile.split("\\.")[1];
-				
 				try {
-					fileData = readFileAsString("./resource" + targetFile);
-					header = ConstructHttpHeader(200, format, fileData.length);
-					outStream.writeBytes(header);
-					outStream.write(fileData);					
-				} catch(IOException e) {
-					header = ConstructHttpHeader(404, "html", 0);
-					outStream.writeBytes(header);
-				}
+					method = buffer.split("\\ ")[0];
+					targetFile = buffer.split(method + "\\ ")[1].split(" HTTP")[0];
+					if (targetFile.equals("/")) {
+						targetFile = "/index.html";
+					}
+					format = targetFile.split("\\.")[1];
 				
-				System.out.println("Read from client "
-						+ clientSock.getInetAddress() + ":"
-						+ clientSock.getPort() + " " + header);
-				System.out.println(fileData);
+					if (method.equals("Head")) {
+						header = ConstructHttpHeader(200, "html", 0);
+						outStream.writeBytes(header);
+					} else {
+						try {
+							fileData = readFileAsString("./resource" + targetFile);
+							header = ConstructHttpHeader(200, format, fileData.length);
+							outStream.writeBytes(header);
+							outStream.write(fileData);					
+						} catch(IOException e) {
+							fileData = readFileAsString("./resource/404.html");
+							header = ConstructHttpHeader(404, "html", fileData.length);
+							outStream.writeBytes(header);
+							outStream.write(fileData);	
+						}
+						
+						System.out.println("Read from client "
+								+ clientSock.getInetAddress() + ":"
+								+ clientSock.getPort() + " " + header);
+					}
+				} catch (PatternSyntaxException e){
+					fileData = readFileAsString("./resource/400.html");
+					header = ConstructHttpHeader(400, "html", fileData.length);
+					outStream.writeBytes(header);
+					outStream.write(fileData);	
+				} catch (ArrayIndexOutOfBoundsException e) {
+					fileData = readFileAsString("./resource/400.html");
+					header = ConstructHttpHeader(400, "html", fileData.length);
+					outStream.writeBytes(header);
+					outStream.write(fileData);	
+				}
 				/*
 				 * Echo the data back and flush the stream to make sure that the
 				 * data is sent immediately
