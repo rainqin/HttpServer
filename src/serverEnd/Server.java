@@ -10,6 +10,9 @@ package serverEnd;
  */
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
@@ -17,6 +20,70 @@ import java.net.Socket;
 
 public class Server {
 	private static ServerSocket srvSock;
+	private static byte[] fileData;
+	private static String header;
+	
+	private static byte[] readFileAsString(String filePath)
+				   throws IOException {
+		File file = new File(filePath);
+		int length = (int)file.length();
+		FileInputStream inStream = null;
+		byte[] data = new byte[length];
+		inStream = new FileInputStream(file);
+		inStream.read(data);
+		inStream.close();
+		return data;
+	}
+	
+	private static String ConstructHttpHeader(int return_code, String file_type, int dataLen) {
+		String s = "HTTP/1.0 ";
+		//you probably have seen these if you have been surfing the web a while
+		switch (return_code) {
+		case 200:
+			s = s + "200 OK";
+		    break;
+		case 400:
+			s = s + "400 Bad Request";
+			break;
+		case 403:
+			s = s + "403 Forbidden";
+			break;
+		case 404:
+			s = s + "404 Not Found";
+			break;
+		case 500:
+			s = s + "500 Internal Server Error";
+			break;
+		case 501:
+			s = s + "501 Not Implemented";
+			break;
+		}
+
+		s = s + "\r\n"; //other header fields,
+		s = s + "Connection: Keep-Alive\r\n"; //we can't handle persistent connections
+		s = s + "Server: SimpleHTTP\r\n"; //server name
+		s = s + "Content-Length: " + dataLen + "\r\n";
+		
+		if (file_type.equals("html")) {
+			s = s + "Content-Type: text/html\r\n";
+		} else if (file_type.equals("css")) {
+			s = s + "Content-Type: text/css\r\n";
+		} else if (file_type.equals("jpeg")){
+			s = s + "Content-Type: image/jpeg\r\n";
+		} else if (file_type.equals("png")) {
+			s = s + "Content-Type: image/png\r\n";
+		} else if (file_type.equals("jpg")) {
+			s = s + "Content-Type: image/jpg\r\n";
+		} else if (file_type.equals("gif")) {
+			s = s + "Content-Type: image/gif\r\n";
+		} 
+		    ////so on and so on......
+		s = s + "\r\n"; //this marks the end of the httpheader
+		    //and the start of the body
+		    //ok return our newly created header!
+		return s;
+	}
+	
 
 	public static void main(String args[]) {
 		String buffer = null;
@@ -75,21 +142,40 @@ public class Server {
 				outStream = new DataOutputStream(clientSock.getOutputStream());
 				/* Read the data send by the client */
 				buffer = inStream.readLine();
+				
+				String targetFile = buffer.split("GET ")[1].split(" HTTP")[0];
+				System.out.println(targetFile);
+				
+				System.out.println(targetFile.split("\\.")[0]);
+				String format = targetFile.split("\\.")[1];
+				
+				try {
+					fileData = readFileAsString("./resource" + targetFile);
+					header = ConstructHttpHeader(200, format, fileData.length);
+					outStream.writeBytes(header);
+					outStream.write(fileData);					
+				} catch(IOException e) {
+					header = ConstructHttpHeader(404, "html", 0);
+					outStream.writeBytes(header);
+				}
+				
 				System.out.println("Read from client "
 						+ clientSock.getInetAddress() + ":"
-						+ clientSock.getPort() + " " + buffer);
+						+ clientSock.getPort() + " " + header);
+				System.out.println(fileData);
 				/*
 				 * Echo the data back and flush the stream to make sure that the
 				 * data is sent immediately
 				 */
-				outStream.writeBytes(buffer);
+				
 				outStream.flush();
 				/* Interaction with this client complete, close() the socket */
-				clientSock.close();
+				clientSock.close();		
 			} catch (IOException e) {
 				clientSock = null;
 				continue;
 			}
+			
 		}
 	}
 }
