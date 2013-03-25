@@ -26,8 +26,9 @@ public class Server {
 	private static String targetFile;
 	private static String method;
 	private static String format;
+	private static Timer timer;
 	
-	private static byte[] readFileAsString(String filePath)
+	public static byte[] readFileAsString(String filePath)
 				   throws IOException {
 		File file = new File(filePath);
 		int length = (int)file.length();
@@ -39,7 +40,7 @@ public class Server {
 		return data;
 	}
 	
-	private static String ConstructHttpHeader(int return_code, String file_type, int dataLen) {
+	public static String ConstructHttpHeader(int return_code, String file_type, int dataLen) {
 		String s = "HTTP/1.0 ";
 		//you probably have seen these if you have been surfing the web a while
 		switch (return_code) {
@@ -91,6 +92,7 @@ public class Server {
 	}
 	
 
+	@SuppressWarnings("deprecation")
 	public static void main(String args[]) {
 		String buffer = null;
 		int port = 8080;
@@ -136,6 +138,7 @@ public class Server {
 				 * accepted on srvSock
 				 */
 				clientSock = srvSock.accept();
+				
 				System.out.println("Accpeted new connection from "
 						+ clientSock.getInetAddress() + ":"
 						+ clientSock.getPort());
@@ -148,6 +151,9 @@ public class Server {
 				outStream = new DataOutputStream(clientSock.getOutputStream());
 				/* Read the data send by the client */
 				buffer = inStream.readLine();
+				
+				timer = new Timer(20, outStream);
+				timer.start();
 				
 				try {
 					method = buffer.split("\\ ")[0];
@@ -187,6 +193,8 @@ public class Server {
 					header = ConstructHttpHeader(400, "html", fileData.length);
 					outStream.writeBytes(header);
 					outStream.write(fileData);	
+				} finally {
+					timer.stop();
 				}
 				/*
 				 * Echo the data back and flush the stream to make sure that the
