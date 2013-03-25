@@ -2,6 +2,7 @@ package serverEnd;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.Socket;
 
 public class Timer extends Thread
 {
@@ -15,20 +16,22 @@ public class Timer extends Thread
 	private int m_elapsed;
 	
 	private DataOutputStream outStream;
+	private Socket clientSock;
 
 	/**
 	  * Creates a timer of a specified length
 	  * @param	length	Length of time before timeout occurs
 	  */
-	public Timer ( int length, DataOutputStream out )
+	public Timer ( int length, DataOutputStream out, Socket sock )
 	{
 		// Assign to member variable
-		m_length = length;
+		m_length = length * 1000;
 
 		// Set time elapsed
 		m_elapsed = 0;
 		
 		outStream = out;
+		clientSock = sock;
 	}
 
 	
@@ -72,6 +75,7 @@ public class Timer extends Thread
 	}
 
 	// Override this to provide custom functionality
+	@SuppressWarnings("deprecation")
 	public void timeout()
 	{
 		try {
@@ -79,8 +83,17 @@ public class Timer extends Thread
 			String header = Server.ConstructHttpHeader(400, "html", fileData.length);
 			outStream.writeBytes(header);
 			outStream.write(fileData);	
+			this.stop();
 		} catch(IOException e) {
 			System.out.println("Timeout Error");
+		}
+		try {
+			outStream.flush();
+			/* Interaction with this client complete, close() the socket */
+			clientSock.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 }

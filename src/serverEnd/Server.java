@@ -12,7 +12,6 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
@@ -23,7 +22,7 @@ public class Server {
 	private static ServerSocket srvSock;
 	private static byte[] fileData;
 	private static String header;
-	private static String targetFile;
+	private static String targetFile;		
 	private static String method;
 	private static String format;
 	private static Timer timer;
@@ -149,11 +148,13 @@ public class Server {
 				inStream = new BufferedReader(new InputStreamReader(
 						clientSock.getInputStream()));
 				outStream = new DataOutputStream(clientSock.getOutputStream());
-				/* Read the data send by the client */
-				buffer = inStream.readLine();
 				
-				timer = new Timer(20, outStream);
+				timer = new Timer(20, outStream, clientSock);
 				timer.start();
+				/* Read the data send by the client */
+				buffer = inStream.readLine();				
+				
+				timer.stop();
 				
 				try {
 					method = buffer.split("\\ ")[0];
@@ -193,9 +194,7 @@ public class Server {
 					header = ConstructHttpHeader(400, "html", fileData.length);
 					outStream.writeBytes(header);
 					outStream.write(fileData);	
-				} finally {
-					timer.stop();
-				}
+				} 
 				/*
 				 * Echo the data back and flush the stream to make sure that the
 				 * data is sent immediately
