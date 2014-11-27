@@ -1,0 +1,91 @@
+package serverEnd;
+/**
+ * @file: Server.java
+ * 
+ * @author: Ying Li  <yingl2@cmu.edu>
+ * 
+ * @date: March 19, 2013 
+ * 
+ */
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class MultiThreadServer {
+  private  ServerSocket srvSock;
+	boolean running;
+	int port;
+	public static void main(String args[]) {
+		String buffer = null;
+		 
+		BufferedReader inStream = null;
+		DataOutputStream outStream = null;
+		MultiThreadServer myServer = new MultiThreadServer();
+		 myServer.running = true; 
+		
+		/* Parse parameter and do args checking */
+		if (args.length < 1) {
+			System.err.println("Usage: java Server <myServer.port_number>");
+			System.exit(1);
+		}
+
+		try {
+			myServer.port = Integer.parseInt(args[0]);
+		} catch (Exception e) {
+			System.err.println("Usage: java Server <myServer.port_number>");
+			System.exit(1);
+		}
+
+		if (myServer.port > 65535 || myServer.port < 1024) {
+			System.err.println("myServer.port number must be in between 1024 and 65535");
+			System.exit(1);
+		}
+
+		myServer.start();
+		//myServer.stop();
+	}
+	public void start(){
+	 try {
+			/*
+			 * Create a socket to accept() client connections. This combines
+			 * socket(), bind() and listen() into one call. Any connection
+			 * attempts before this are terminated with RST.
+			 */
+			srvSock = new ServerSocket(this.port);
+		} catch (IOException e) {
+			System.err.println("Unable to listen on myServer.port " + port);
+			System.exit(1);
+		}
+		System.out.println("server running on myServer.port " + port);
+		while (running) {
+			Socket clientSock;
+			try {
+				/*
+				 * Get a sock for further communication with the client. This
+				 * socket is sure for this client. Further connections are still
+				 * accepted on srvSock
+				 */
+				clientSock = srvSock.accept();
+				System.out.println("Accpeted new connection from "
+						+ clientSock.getInetAddress() + ":"
+						+ clientSock.getPort());
+			} catch (IOException e) {
+				continue;
+			}
+			 new Thread( new ResponseHandler( clientSock, "Multithreaded Server") ).start();
+			 System.out.println("Server Thread count: "+Thread.activeCount());
+		}
+		System.out.println("Server Stopped");
+ }
+	public synchronized void stop(){
+        this.running = false;
+        try {
+            this.srvSock.close();
+            System.out.println("Server Stopped");
+        } catch (IOException e) {
+            throw new RuntimeException("Error closing server", e);
+        }
+    }
+}
